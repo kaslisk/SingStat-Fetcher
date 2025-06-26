@@ -5,6 +5,7 @@ from cleaner import to_df
 from file_manager import save_csv, load_csv, list_csvs, save_joined, update, delete
 from joiner import leftjoin_df, innerjoin_df, rightjoin_df
 import uvicorn
+from mongo import store_entry, del_entry, update_entry
 
 app = FastAPI()
 
@@ -21,8 +22,8 @@ def query_table(id):
     try:
         raw = fetch_table_data(id)
         df = to_df(raw)
-        path = save_csv(df, id)
-        return FileResponse(path, media_type="text/csv", filename=f"{id}.csv")
+        store_entry(df, id)
+        return JSONResponse(status_code=200, content = {"Success": f"Entry {id} found and stored."})
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
 
@@ -36,8 +37,19 @@ def preview_table(id):
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
 
-@app.post("/join")
-def join_csvs(table1: str = Form(...), table2: str = Form(...), key: str = Form("Date"), name: str = Form(...)):
+@app.post("/innerjoin")
+def join_csvs_inner(table1: str = Form(...), table2: str = Form(...), key: str = Form("Date"), name: str = Form(...)):
+    try:
+        df1 = load_csv(f"./tmp/{table1}.csv")
+        df2 = load_csv(f"./tmp/{table2}.csv")
+        joined = innerjoin_df(df1, df2, key)
+        path = save_csv(joined, f"{name}_joined")
+        return FileResponse(path, media_type="text/csv", filename=f"{name}.csv")
+    except Exception as e:
+        return JSONResponse(status_code=500, content = {"error": str(e)})
+    
+@app.post("/leftjoin")
+def join_csvs_left(table1: str = Form(...), table2: str = Form(...), key: str = Form("Date"), name: str = Form(...)):
     try:
         df1 = load_csv(f"./tmp/{table1}.csv")
         df2 = load_csv(f"./tmp/{table2}.csv")
@@ -46,39 +58,31 @@ def join_csvs(table1: str = Form(...), table2: str = Form(...), key: str = Form(
         return FileResponse(path, media_type="text/csv", filename=f"{name}.csv")
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
-
-@app.get("/list")
-def list_files():
-    try:
-        return list_csvs()
-    except Exception as e:
-        return JSONResponse(status_code=500, content = {"error": str(e)})
     
-@app.post("/view")
-def view_files(id):
+@app.post("/rightjoin")
+def join_csvs_right(table1: str = Form(...), table2: str = Form(...), key: str = Form("Date"), name: str = Form(...)):
     try:
-        df = load_csv(f"./tmp/{id}.csv")
-        df["Date"] = df["Date"].astype(str)
-        return JSONResponse(df.head(20).to_dict(orient="records"))
+        df1 = load_csv(f"./tmp/{table1}.csv")
+        df2 = load_csv(f"./tmp/{table2}.csv")
+        joined = rightjoin_df(df1, df2, key)
+        path = save_csv(joined, f"{name}_joined")
+        return FileResponse(path, media_type="text/csv", filename=f"{name}.csv")
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
 
-@app.get("/update")
-def update_csv():
-    n = update()
-
-    for id in n:
-        raw = fetch_table_data(id)
-        df = to_df(raw)
-        path = save_csv(df, id)
-    
-    return JSONResponse({"number of files updated: ": len(n)})
+@app.post("/update")
+def update_csv(id):
+    try:
+        update_entry(id)
+        return JSONResponse(status_code=200, content={"updated: ": f"{id}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error" : str(e)})
 
 @app.post("/remove")
-def remove_file(name):
+def remove_file(id):
     try:
-        n = delete(name)
-        return JSONResponse({"file deleted: ": f"{n}.csv"})
+        del_entry(id)
+        return JSONResponse({"file deleted: ": f"{id}"})
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
 
