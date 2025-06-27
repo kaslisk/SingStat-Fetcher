@@ -5,7 +5,7 @@ from cleaner import to_df
 from file_manager import save_csv, load_csv, list_csvs, save_joined, update, delete
 from joiner import leftjoin_df, innerjoin_df, rightjoin_df
 import uvicorn
-from mongo import store_entry, del_entry, update_entry
+from mongo import store_entry, del_entry, update_entry, view
 
 app = FastAPI()
 
@@ -85,7 +85,18 @@ def remove_file(id):
         return JSONResponse({"file deleted: ": f"{id}"})
     except Exception as e:
         return JSONResponse(status_code=500, content = {"error": str(e)})
+    
+@app.get("/viewcol")
+def viewcol():
+    return JSONResponse(status_code=200, content={"content" : view(False)})
 
+@app.get("/wipe")
+def wipe():
+    try:
+        wipe()
+        return JSONResponse(status_code=200, content={"collectoin wiped": "!"})
+    except Exception:
+        return JSONResponse(status_code=500, content={"error" : "idk"})
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

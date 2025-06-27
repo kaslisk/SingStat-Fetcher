@@ -18,6 +18,8 @@ def to_df(raw_json):
         temp[table[i]["rowText"]] = templst
 
     df = pd.DataFrame({key:pd.Series(value) for key, value in temp.items()})
+    df = df.astype("string")
     df["Date"] = pd.to_datetime(df["Date"])
-
+    str_cols = df.select_dtypes(["string"]).columns.tolist()
+    df[str_cols] = df[str_cols].astype("float")
     return df
