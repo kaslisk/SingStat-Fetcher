@@ -54,3 +54,30 @@ def update_entry(id):
         del_entry(id)
         store_entry(to_df(fetch_table_data(id)), id)
         client.close()
+
+def view(output=False):
+    client = MongoClient(uri, server_api=ServerApi('1'))
+    client.admin.command('ping')
+    db = client[f"{database}"]
+    out = db.list_collection_names()
+    if not output:
+        if len(out) == 0:
+            client.close()
+            return "no results"
+        else:
+            client.close()
+            return out
+    else:
+        return out
+
+def wipe():
+    try:
+        client = MongoClient(uri, server_api=ServerApi('1'))
+        client.admin.command('ping')
+        db = client[f"{database}"]
+        print(type(db.list_collection_names()))
+        for item in db.list_collection_names():
+            db[f"{item}"].drop()
+        client.close()
+    except Exception as e:
+        print(str(e))
