@@ -3,6 +3,7 @@ from pymongo.server_api import ServerApi
 import pandas as pd
 from client import fetch_table_data
 from cleaner import to_df
+import certifi
 
 database = "test"
 uri = "mongodb+srv://kaslisk:seeyuh@cluster0.vk5ocij.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -81,3 +82,47 @@ def wipe():
         client.close()
     except Exception as e:
         print(str(e))
+
+
+def join(col_a, col_b, name):
+    client = MongoClient(uri, server_api=ServerApi('1'), tlsCAFile=certifi.where())
+    client.admin.command('ping')
+    db = client[f"{database}"]
+
+    pipeline = [
+        {
+            "$lookup": {
+                "from": col_b,
+                "localField":"_id",
+                "foreignField": "_id",
+                "as": "temp"
+            }
+        },
+        {
+            "$unwind": "$temp"
+        },
+        {
+            "$replaceRoot": {
+                "newRoot": {
+                    "$mergeObjects": ["$temp", "$$ROOT"]
+                }
+            }
+        },
+        {
+            "$project":{
+                "temp": 0
+            }
+        },
+        {
+            "$merge": {
+                "into": name,
+                "whenMatched": "merge",
+                "whenNotMatched": "insert"
+            }
+        }
+    ]
+
+    db[col_a].aggregate(pipeline)
+    client.close()
+    return
+ 
